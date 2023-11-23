@@ -247,38 +247,30 @@ class CheckReceipt(Frame):
             pass
 
     def _check(self):
-        cleans = []
-        debtor = []
-        result = []
+        result, debtor = [], {}
         if self.file_txt.get() and self.target_txt.get():
             data = pd.read_excel(self.file_txt.get())
             target = float(self.target_txt.get())
-            for i in range(len(data)):
-                if data.iloc[i, 0] not in debtor:
-                    cleans.append([data.iloc[i, 0], [data.iloc[i, 1]]])
-                    debtor.append(data.iloc[i, 0])
+            for i in range(1, len(data) - 4):
+                customer = data.iloc[i, 5]
+                invoices = data.iloc[i, 1][0:6]
+                debt_val = data.iloc[i, 7]
+                if customer not in debtor:
+                    debtor[customer] = {invoices: float(debt_val)}
                 else:
-                    cleans[debtor.index(data.iloc[i, 0])][1].append(data.iloc[i, 1])
-                    cleans[debtor.index(data.iloc[i, 0])][1].sort()
-
-            cleans = sorted(cleans, key=lambda x: x[0])
-            debtor.sort()
-
-            for debt in cleans:
-                temp = 0
-                for i in range(len(debt[1])):
-                    if debt[1][i] == target or (target + 25) >= debt[1][i] >= (target - 25):
-                        result.append([debt[0], debt[1]])
-                    elif temp < target:
-                        temp += debt[1][i]
+                    if invoices in debtor[customer]:
+                        debtor[customer][invoices] += float(debt_val)
                     else:
-                        break
-                if temp == target or (target + 25) >= temp >= (target - 25):
-                    result.append([debt[0], temp])
-            if len(result) == 0:
+                        debtor[customer][invoices] = float(debt_val)
+            for customer, invoices in debtor.items():
+                for inv, val in invoices.items():
+                    total_debt = val
+                    if total_debt == target or (target + 25) >= total_debt >= (target - 25):
+                        result.append(f"{customer} {inv} ยอด {round(val, 2)}")
+            if not result:
                 self.result_txt.set("ไม่พบข้อมูล")
             else:
-                self.result_txt.set(result)
+                self.result_txt.set('\n'.join(result))
 
 
 class MainFrame(Frame):
