@@ -1,6 +1,7 @@
 from pypdf import PdfWriter, PdfReader
 from tkinter import Tk, ttk, Frame, StringVar, BooleanVar, Button
 from tkinter.filedialog import askopenfilename, askdirectory
+import pandas as pd
 import json
 
 
@@ -22,7 +23,8 @@ class Delivery(Frame):
         self.type = BooleanVar()
         self._load_location()
         self.widget = [
-            ttk.Checkbutton(self, text="ปิดชื่อบริษัท", variable=self.type, onvalue=True, offvalue=False, command=lambda: self._toggle_type()),
+            ttk.Checkbutton(self, text="ปิดชื่อบริษัท", variable=self.type, onvalue=True, offvalue=False,
+                            command=lambda: self._toggle_type()),
             ttk.Label(self, anchor="e", width=13, background="white", text="ใบกำกับภาษี"),
             ttk.Label(self, anchor="e", width=13, background="white", text="บันทึกไฟล์ไว้ที่"),
             ttk.Label(self, anchor="e", background="white", foreground="red", textvariable=self.error_txt),
@@ -63,9 +65,9 @@ class Delivery(Frame):
         try:
             with open("asset/temp.json", "w") as outfile:
                 json.dump({
-                        "last_location_file": self.last_location_file,
-                        "last_location_save": self.last_location_save
-                    }, outfile)
+                    "last_location_file": self.last_location_file,
+                    "last_location_save": self.last_location_save
+                }, outfile)
         except:
             pass
 
@@ -108,7 +110,8 @@ class Delivery(Frame):
                 self.error_txt.set("PermissionError. Please Select Another Save location.")
         else:
             pass
-        
+
+
 class Signature(Frame):
     def __init__(self, parent):
         super().__init__(parent)
@@ -161,9 +164,9 @@ class Signature(Frame):
         try:
             with open("asset/temp.json", "w") as outfile:
                 json.dump({
-                        "last_location_file": self.last_location_file,
-                        "last_location_save": self.last_location_save
-                    }, outfile)
+                    "last_location_file": self.last_location_file,
+                    "last_location_save": self.last_location_save
+                }, outfile)
         except:
             pass
 
@@ -207,6 +210,77 @@ class Signature(Frame):
         else:
             pass
 
+
+class CheckReceipt(Frame):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.configure(background="white")
+        self.rowconfigure(4, weight=1)
+        self.columnconfigure(1, weight=1)
+        self.file_txt = StringVar()
+        self.target_txt = StringVar()
+        self.result_txt = StringVar()
+        self.widget = [
+            ttk.Label(self, anchor="e", width=10, background="white", text=""),
+            ttk.Label(self, anchor="e", width=13, background="white", text="ไฟล์ Excel"),
+            ttk.Label(self, anchor="e", width=13, background="white", text="จำนวนเงิน"),
+            ttk.Label(self, anchor="e", background="white", textvariable=self.result_txt),
+            ttk.Entry(self, state="disabled", textvariable=self.file_txt),
+            ttk.Entry(self, justify='center', textvariable=self.target_txt),
+            ttk.Button(self, width=10, text="เลือก", command=lambda: self._select_file()),
+            ttk.Button(self, width=10, text="ตรวจสอบ", command=lambda: self._check()),
+        ]
+        self.widget[0].grid(row=0, column=0, pady=(17, 0), padx=5)
+        self.widget[1].grid(row=1, column=0, pady=15, padx=5)
+        self.widget[2].grid(row=2, column=0, pady=15, padx=5)
+        self.widget[3].grid(row=3, column=1, pady=15, padx=5)
+        self.widget[4].grid(row=1, column=1, pady=15, padx=5, sticky="ew")
+        self.widget[5].grid(row=2, column=1, pady=15, padx=5, sticky="ew")
+        self.widget[6].grid(row=1, column=2, pady=15, padx=5)
+        self.widget[7].grid(row=2, column=2, pady=15, padx=5)
+
+    def _select_file(self):
+        excel_file = askopenfilename(filetypes=[('xls file', '*.xls')])
+        if excel_file:
+            self.file_txt.set(excel_file)
+        else:
+            pass
+
+    def _check(self):
+        cleans = []
+        debtor = []
+        result = []
+        if self.file_txt.get() and self.target_txt.get():
+            data = pd.read_excel(self.file_txt.get())
+            target = float(self.target_txt.get())
+            for i in range(len(data)):
+                if data.iloc[i, 0] not in debtor:
+                    cleans.append([data.iloc[i, 0], [data.iloc[i, 1]]])
+                    debtor.append(data.iloc[i, 0])
+                else:
+                    cleans[debtor.index(data.iloc[i, 0])][1].append(data.iloc[i, 1])
+                    cleans[debtor.index(data.iloc[i, 0])][1].sort()
+
+            cleans = sorted(cleans, key=lambda x: x[0])
+            debtor.sort()
+
+            for debt in cleans:
+                temp = 0
+                for i in range(len(debt[1])):
+                    if debt[1] == target or (target + 25) >= debt[1] >= (target - 25):
+                        result.append([debt[0], debt[1]])
+                    elif temp < target:
+                        temp += debt[1][i]
+                    else:
+                        break
+                if temp == target or (target + 25) >= temp >= (target - 25):
+                    result.append([debt[0], temp])
+            if len(result) == 0:
+                self.result_txt.set("ไม่พบข้อมูล")
+            else:
+                self.result_txt.set(result)
+
+
 class MainFrame(Frame):
     def __init__(self, container):
         super().__init__(container)
@@ -219,28 +293,35 @@ class MainFrame(Frame):
         self.number = 0
         self.menu = Frame(self, background="white")
         self.content = Frame(self, background="white", borderwidth=1)
-        self.chlid = [
+        self.child = [
             Signature(self.content),
-            Delivery(self.content)
+            Delivery(self.content),
+            CheckReceipt(self.content)
         ]
         self.widget = [
-            Button(self.menu, width=20, bg="gray80", bd=1, relief="solid", text="เซ็นใบสั่งซื้อสินค้า", command=lambda: self._switch_frame(0)),
-            Button(self.menu, width=20, bg="white", bd=0, relief="solid", text="ปิดราคาขายสินค้า", command=lambda: self._switch_frame(1))
+            Button(self.menu, width=20, bg="gray80", bd=1, relief="solid", text="เซ็นใบสั่งซื้อสินค้า",
+                   command=lambda: self._switch_frame(0)),
+            Button(self.menu, width=20, bg="white", bd=0, relief="solid", text="ปิดราคาขายสินค้า",
+                   command=lambda: self._switch_frame(1)),
+            Button(self.menu, width=20, bg="white", bd=0, relief="solid", text="ตรวจสอบยอดรับ",
+                   command=lambda: self._switch_frame(2))
         ]
         self.menu.grid(row=0, column=0, sticky="nsew")
         self.content.grid(row=1, column=0, sticky="nsew")
         self.widget[0].grid(row=0, column=0, padx=2, sticky="w")
-        self.widget[1].grid(row=0, column=1, sticky="w")
-        self.chlid[0].pack(fill="both", expand=True, pady=15, padx=1)
-        
+        self.widget[1].grid(row=0, column=1, padx=2, sticky="w")
+        self.widget[2].grid(row=0, column=2, sticky="w")
+        self.child[0].pack(fill="both", expand=True, pady=15, padx=1)
+
     def _switch_frame(self, n):
         if n != self.number:
-            for i in range(len(self.chlid)):
-                self.chlid[i].pack_forget()
+            for i in range(len(self.child)):
+                self.child[i].pack_forget()
                 self.widget[i].configure(bg="white", bd=0)
             self.number = n
-            self.chlid[n].pack(fill="both", expand=True, pady=15, padx=1)
+            self.child[n].pack(fill="both", expand=True, pady=15, padx=1)
             self.widget[n].configure(bg="gray80", bd=1)
+
 
 class App(Tk):
     def __init__(self):
@@ -251,7 +332,6 @@ class App(Tk):
         self.geometry("600x300+{}+{}".format(self.posRight, self.posDown))
         self.resizable(False, False)
         self.mainFrame = MainFrame(self)
-
 
 
 if __name__ == '__main__':
