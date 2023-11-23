@@ -264,9 +264,12 @@ class CheckReceipt(Frame):
                         debtor[customer][invoices] = float(debt_val)
             for customer, invoices in debtor.items():
                 for inv, val in invoices.items():
-                    total_debt = val
-                    if total_debt == target or (target + 25) >= total_debt >= (target - 25):
+                    total_debt = sum(invoices.values())
+                    if val == target or (target + 25) >= val >= (target - 25):
                         result.append(f"{customer} {inv} ยอด {round(val, 2)}")
+                    elif total_debt == target or (target + 25) >= total_debt >= (target - 25):
+                        result.append(f"{customer} {invoices}")
+                        break
             if not result:
                 self.result_txt.set("ไม่พบข้อมูล")
             else:
