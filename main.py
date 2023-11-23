@@ -267,7 +267,7 @@ class CheckReceipt(Frame):
             for debt in cleans:
                 temp = 0
                 for i in range(len(debt[1])):
-                    if debt[1] == target or (target + 25) >= debt[1] >= (target - 25):
+                    if debt[1][i] == target or (target + 25) >= debt[1][i] >= (target - 25):
                         result.append([debt[0], debt[1]])
                     elif temp < target:
                         temp += debt[1][i]
